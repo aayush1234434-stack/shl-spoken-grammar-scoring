@@ -1,55 +1,48 @@
-# SHL grammar scoring: learner-English features
+# SHL spoken grammar scoring: v5
 
-This candidate adds a grammatical-error detector trained on learner English
-to the audio-aware submission that scored 0.3863 on Kaggle. The original
-Desktop project and earlier submissions are unchanged.
+This repository contains a reproducible spoken-English grammar scoring
+pipeline for the SHL Research Engineer challenge. It combines Whisper
+transcript features, CoLA and learner-English grammar scores, acoustic
+statistics, and a small WavLM speech representation branch.
 
-## Model
+The v5 submission starts with the validated v4 prediction and adds a Ridge
+model on WavLM Base Plus embeddings at a 5% blend weight. The weight was chosen
+from repeated out-of-fold validation on the 732 non-noise training clips. On
+three seeds, the WavLM branch improved the full speech validation RMSE by
+approximately 0.004–0.007. The final Kaggle score must be measured by Kaggle.
 
-`train_ged_v4.py` fits the four models from the previous audio-aware blend.
-It adds two small components: histogram gradient boosting on the existing
-numeric features plus grammatical-error summaries, and ridge regression on
-the error detector's transcript embeddings. Their weights are 0.075 each;
-the previous blend keeps weight 0.85. The same 1.25 scale and 0.08 downward
-adjustment are applied before scores are clipped to `[0, 5]`.
+## Files
 
-The error detector scores each sentence, then produces clip-level statistics
-such as mean, minimum, and fraction with a high error score. Its model is
-`rahuln2002/roberta-base-20k-GED`, trained on a cleaned Lang-8 dataset.
-The training target here uses only SHL's labeled training clips. Test labels
-are never read.
+- `train_ged_v4.py`: builds the v4 transcript, grammar and acoustic model.
+- `wavlm_embeddings.py`: extracts resumable WavLM embeddings from 16 kHz WAV files.
+- `train_wavlm_v5.py`: adds the WavLM Ridge branch to the v4 submission.
+- `pos_patterns.py`: optional POS and shallow agreement features for ablations.
+- `build_grammar_cache.py`, `ged_features.py`, `audio_extra.py`: feature builders.
+- `src/`: original transcription, feature extraction and training utilities.
+- `outputs/submission_wavlm_v5.csv`: the generated 216-row submission file.
 
-## Local validation
+Competition audio, labels, transcripts and derived feature caches are excluded
+from the public repository. Obtain the challenge data through Kaggle and place
+it under `data/Dataset_Final/` before rebuilding features.
 
-On three fresh five-fold splits (seeds 71, 89, 97), RMSE on the 212
-training clips most similar to the test distribution changed as follows:
-
-| Seed | Previous audio blend | This candidate |
-| ---: | ---: | ---: |
-| 71 | 0.5572 | 0.5476 |
-| 89 | 0.5600 | 0.5485 |
-| 97 | 0.5615 | 0.5535 |
-
-These are validation figures. The Kaggle score for this file is unknown.
-
-## Run
-
-From this directory, install the dependencies and run:
+## Reproduce
 
 ```bash
 pip install -r requirements.txt
+python -m src.transcribe
+python -m src.build_features
+python build_grammar_cache.py --features cache/features.csv
+python audio_extra.py --data data/Dataset_Final --features cache/features.csv
+python ged_features.py --features cache/features.csv
 python train_ged_v4.py
+python wavlm_embeddings.py --data data/Dataset_Final --features cache/features.csv
+python train_wavlm_v5.py
 ```
 
-It writes `outputs/submission_ged_v4.csv`, aligned to the 216 rows in
-`data/Dataset_Final/test.csv`. The supplied `sample_submission.csv` has 204
-different filenames and does not match the accepted submission format.
+The WavLM script downloads `microsoft/wavlm-base-plus` through Transformers
+when a local model directory is not supplied. The extractor is resumable and
+stores one embedding per clip under `cache/wavlm_per_clip/`.
 
-To rebuild derived caches from the original project, use
-`python -m src.transcribe` and `python -m src.build_features` first, followed
-by `build_grammar_cache.py`, `audio_extra.py`, and `ged_features.py`. The audio
-script needs the original WAV files under `data/Dataset_Final/`; the grammar
-scripts download their pretrained model files if needed. The complete bundle
-includes the derived caches for a quick rerun. Local cache files contain
-competition transcripts and labels, so review the competition's data terms
-before putting those files in a public repository.
+The supplied output was generated with one 10-second window per clip and
+`Ridge(alpha=1.0)` blended at weight `0.05`. The final output is aligned to the
+216 filenames in `test.csv`.

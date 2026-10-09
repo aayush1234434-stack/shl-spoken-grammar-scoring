@@ -5,3 +5,6 @@ outputs/*
 !outputs/submission_wavlm_v5.csv
 !outputs/submission_medium_v6.csv
 __pycache__/
+!outputs/submission_v6_shift_plus010.csv
+!outputs/coedit_metrics.json
+!outputs/encoder_metrics.json

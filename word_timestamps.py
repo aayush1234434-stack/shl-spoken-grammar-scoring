@@ -58,7 +58,17 @@ def main() -> None:
     with args.output.open("a") as handle:
         for index, (split, filename) in enumerate(pending, start=1):
             started = time.time()
-            audio, _sample_rate = read_wav(str(args.data / split / filename))
+            audio = None
+            path = args.data / split / filename
+            for attempt in range(1, 6):
+                try:
+                    audio, _sample_rate = read_wav(str(path))
+                    break
+                except (TimeoutError, OSError, ValueError) as exc:
+                    print(f"retry {attempt} {split}/{filename}: {exc}", flush=True)
+                    time.sleep(3 * attempt)
+            if audio is None:
+                raise RuntimeError(f"Could not read {split}/{filename}")
             result = mlx_whisper.transcribe(
                 audio,
                 path_or_hf_repo=MODEL,

@@ -63,7 +63,20 @@ def main() -> None:
     with args.output.open("a") as handle:
         for index, (split, filename) in enumerate(pending, start=1):
             started = time.time()
-            audio, sample_rate = read_wav(str(args.data / split / filename))
+            audio = None
+            sample_rate = 0
+            path = args.data / split / filename
+            for attempt in range(1, 6):
+                try:
+                    audio, sample_rate = read_wav(str(path))
+                    break
+                except (TimeoutError, OSError, ValueError) as exc:
+                    # Desktop files can be iCloud placeholders. A short read often
+                    # starts the download; the next attempt then sees a real WAV.
+                    print(f"retry {attempt} {split}/{filename}: {exc}", flush=True)
+                    time.sleep(3 * attempt)
+            if audio is None:
+                raise RuntimeError(f"Could not read {split}/{filename}")
             if sample_rate != 16000:
                 raise ValueError(f"{split}/{filename} is {sample_rate} Hz, expected 16000")
             inputs = processor(audio, sampling_rate=16000, return_tensors="pt")

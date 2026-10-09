@@ -183,6 +183,13 @@ def main() -> None:
         )
 
     chosen = min(results, key=lambda item: item["blend_rmse"])
+    # Whisper-medium v6 averaged 0.538 on this same 212-clip slice and scored
+    # 0.3761 on Kaggle. A new file is written only when the local error is
+    # about 0.03 below that, the size that previously failed to move the rank
+    # when it was only 0.01.
+    medium_local = 0.5382
+    chosen["medium_v6_local_rmse"] = medium_local
+    chosen["worth_submitting"] = bool(chosen["blend_rmse"] <= medium_local - 0.03)
     print("chosen", json.dumps(chosen), flush=True)
     confident_all, ctc_all = feature_matrices(
         frame, sentences, ctc_rows, chosen["mean_threshold"], chosen["min_threshold"]
@@ -212,9 +219,17 @@ def main() -> None:
     output = sample[["filename"]].copy()
     output["label"] = prediction
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    output.to_csv(args.output, index=False)
-    (args.output.parent / "v6_metrics.json").write_text(json.dumps({"chosen": chosen, "grid": results}, indent=2))
-    print(f"saved {args.output} ({len(output)} predictions)", flush=True)
+    metrics_path = args.output.parent / "v6_metrics.json"
+    metrics_path.write_text(json.dumps({"chosen": chosen, "grid": results}, indent=2))
+    if chosen["worth_submitting"]:
+        output.to_csv(args.output, index=False)
+        print(f"saved {args.output} ({len(output)} predictions)", flush=True)
+    else:
+        print(
+            f"local blend {chosen['blend_rmse']:.4f} is not 0.03 below the medium v6 "
+            f"local score {medium_local:.4f}; left {args.output} unwritten",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

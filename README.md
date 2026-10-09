@@ -1,31 +1,37 @@
-# SHL spoken grammar scoring: v5
+# SHL spoken grammar scoring: v6
 
-This repository contains a reproducible spoken-English grammar scoring
-pipeline for the SHL Research Engineer challenge. It combines Whisper
-transcript features, CoLA and learner-English grammar scores, acoustic
-statistics, and a small WavLM speech representation branch.
+This repository holds the code and submission CSVs for a spoken-English grammar
+scoring model. The model uses Whisper transcripts, grammar-model embeddings,
+reference-free grammar scores, acoustic features, and a small WavLM audio branch.
 
-The v5 submission starts with the validated v4 prediction and adds a Ridge
-model on WavLM Base Plus embeddings at a 5% blend weight. The weight was chosen
-from repeated out-of-fold validation on the 732 non-noise training clips. On
-three seeds, the WavLM branch improved the full speech validation RMSE by
-approximately 0.004–0.007. The final Kaggle score must be measured by Kaggle.
+The v6 submission adds three changes to the v5 file:
 
-## Files
+1. Transcribe each clip with Whisper medium and obtain a second CoLA grammar
+   embedding. Replace half of the original Whisper small embedding prediction
+   with the medium-based prediction.
+2. Give four times as much training weight to labeled clips with IDs 0–215 in
+   the numeric Ridge branch. These clips have feature distributions closer to
+   the test set than the remaining labeled clips.
+3. Replace the learner-error embedding prediction from the small transcript
+   with one computed from the medium transcript.
 
-- `train_ged_v4.py`: builds the v4 transcript, grammar and acoustic model.
-- `wavlm_embeddings.py`: extracts resumable WavLM embeddings from 16 kHz WAV files.
-- `train_wavlm_v5.py`: adds the WavLM Ridge branch to the v4 submission.
-- `pos_patterns.py`: optional POS and shallow agreement features for ablations.
-- `build_grammar_cache.py`, `ged_features.py`, `audio_extra.py`: feature builders.
-- `src/`: original transcription, feature extraction and training utilities.
-- `outputs/submission_wavlm_v5.csv`: the generated 216-row submission file.
+Both changes were checked on three five-fold out-of-fold splits over the 732
+speech training clips. RMSE on the 212 training clips in the test-like group:
 
-Competition audio, labels, transcripts and derived feature caches are excluded
-from the public repository. Obtain the challenge data through Kaggle and place
-it under `data/Dataset_Final/` before rebuilding features.
+| Split seed | v5 | v6 |
+| ---: | ---: | ---: |
+| 71 | 0.5459 | 0.5360 |
+| 89 | 0.5476 | 0.5386 |
+| 97 | 0.5520 | 0.5401 |
+
+These are local validation scores. The actual Kaggle score for v6 is unknown
+until it is submitted. The last v5 public score reported by the candidate was
+0.3772.
 
 ## Reproduce
+
+Place the challenge dataset in `data/Dataset_Final/`, then run from the
+repository root:
 
 ```bash
 pip install -r requirements.txt
@@ -35,14 +41,19 @@ python build_grammar_cache.py --features cache/features.csv
 python audio_extra.py --data data/Dataset_Final --features cache/features.csv
 python ged_features.py --features cache/features.csv
 python train_ged_v4.py
-python wavlm_embeddings.py --data data/Dataset_Final --features cache/features.csv
+python wavlm_embeddings.py --data data/Dataset_Final --features cache/features.csv --windows 1
 python train_wavlm_v5.py
+python -m src.transcribe_medium
+python build_medium_features.py
+python build_grammar_cache.py --features cache/medium_features.csv --cola cache/medium_cola_features.csv --embeddings cache/medium_roberta_embeddings.npz
+python ged_features.py --features cache/medium_features.csv --ged cache/medium_ged_features.csv --embeddings cache/medium_ged_embeddings.npz
+python train_medium_v6.py
 ```
 
-The WavLM script downloads `microsoft/wavlm-base-plus` through Transformers
-when a local model directory is not supplied. The extractor is resumable and
-stores one embedding per clip under `cache/wavlm_per_clip/`.
+The final file is `outputs/submission_medium_v6.csv`, with 216 rows matching
+`data/Dataset_Final/test.csv`. The supplied `sample_submission.csv` contains a
+different set of filenames, so use `test.csv` for row alignment.
 
-The supplied output was generated with one 10-second window per clip and
-`Ridge(alpha=1.0)` blended at weight `0.05`. The final output is aligned to the
-216 filenames in `test.csv`.
+The public repository includes code and prediction files. Challenge audio,
+labels, transcripts, and derived feature caches remain in local `data/` and
+`cache/` directories, which are ignored by Git.

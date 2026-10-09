@@ -1,4 +1,7 @@
 cache/
 data/
-outputs/
+outputs/*
+!outputs/submission_ged_v4.csv
+!outputs/submission_wavlm_v5.csv
+!outputs/submission_medium_v6.csv
 __pycache__/

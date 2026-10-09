@@ -29,6 +29,7 @@ from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.prediction import medium_v6_oof
 from v6_features import CONF_COLUMNS, CTC_COLUMNS, confidence_features, ctc_disagreement
 
 
@@ -104,7 +105,7 @@ def main() -> None:
     parser.add_argument("--sentences", type=Path, default=Path("cache/sentence_scores.jsonl"))
     parser.add_argument("--ctc", type=Path, default=Path("cache/ctc_transcripts.jsonl"))
     parser.add_argument("--oof-dir", type=Path, required=True)
-    parser.add_argument("--base", type=Path, default=Path("submission_wavlm_v5.csv"))
+    parser.add_argument("--base", type=Path, default=Path("outputs/submission_wavlm_v5.csv"))
     parser.add_argument("--sample", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("outputs/submission_v6.csv"))
     parser.add_argument("--alpha", type=float, default=10.0)
@@ -183,11 +184,13 @@ def main() -> None:
         )
 
     chosen = min(results, key=lambda item: item["blend_rmse"])
-    # Whisper-medium v6 averaged 0.538 on this same 212-clip slice and scored
-    # 0.3761 on Kaggle. A new file is written only when the local error is
-    # about 0.03 below that, the size that previously failed to move the rank
-    # when it was only 0.01.
-    medium_local = 0.5382
+    # The comparison is the medium-v6 OOF on this same 212-clip slice, calculated
+    # for this run. A new file is written only when the local error is about
+    # 0.03 below that.
+    medium_scores = [
+        rmse(target[low], medium_v6_oof(speech, args.oof_dir, seed, train_mean)[low]) for seed in seeds
+    ]
+    medium_local = float(np.mean(medium_scores))
     chosen["medium_v6_local_rmse"] = medium_local
     chosen["worth_submitting"] = bool(chosen["blend_rmse"] <= medium_local - 0.03)
     print("chosen", json.dumps(chosen), flush=True)

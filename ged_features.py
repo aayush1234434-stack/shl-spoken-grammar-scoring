@@ -2,7 +2,12 @@
 
 import re
 import argparse
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from src.cache_meta import write_meta
+from src.sentences import split_sentences
 
 import numpy as np
 import pandas as pd
@@ -22,7 +27,7 @@ frame=pd.read_csv(args.features)
 
 owners=[];sentences=[];lengths=[]
 for i,text in enumerate(frame.text.fillna('')):
- for part in [p.strip() for p in re.split(r'[.!?]+',text) if p.strip()]:
+ for part in split_sentences(text):
   owners.append(i);sentences.append(part);lengths.append(len(re.findall(r"[A-Za-z']+",part)))
 
 print('sentences',len(sentences),flush=True)
@@ -59,4 +64,5 @@ with torch.inference_mode():
 embedding=np.vstack(vectors).astype(np.float32)
 args.embeddings.parent.mkdir(parents=True,exist_ok=True)
 np.savez_compressed(args.embeddings,split=frame.split.to_numpy(str),filename=frame.filename.to_numpy(str),embedding=embedding)
+write_meta(args.ged, row_count=len(out))
 print('saved',embedding.shape,flush=True)

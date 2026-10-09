@@ -16,6 +16,7 @@ import pandas as pd
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from src.cache_meta import write_meta
 from v6_features import align_sentence_probabilities, split_sentences, tokens
 
 MODEL = "rahuln2002/roberta-base-20k-GED"
@@ -94,6 +95,7 @@ def main() -> None:
             key = (row.split, row.filename)
             record = {"split": row.split, "filename": row.filename, "sentences": prepared[key]}
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    write_meta(args.output, row_count=len(frame))
     print(f"saved {args.output}", flush=True)
 
 

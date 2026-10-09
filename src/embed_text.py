@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.cache_meta import write_meta
 from src.text_features import split_sentences, tokenize
 
 FEATURES = ROOT / "cache" / "features.csv"
@@ -132,6 +133,7 @@ def main() -> None:
 
     cola = build_cola_features(frame, device)
     cola.to_csv(COLA_OUT, index=False)
+    write_meta(COLA_OUT, row_count=len(cola))
     print(f"wrote {COLA_OUT}", flush=True)
 
     embeddings = build_embeddings(frame, device)

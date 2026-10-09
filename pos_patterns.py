@@ -16,9 +16,10 @@ import nltk
 import numpy as np
 import pandas as pd
 
+from src.cache_meta import write_meta
+from src.sentences import split_sentences
 
 TOKEN = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
-SENTENCE = re.compile(r"[.!?]+")
 FINITE_TAGS = {"VBD", "VBP", "VBZ", "MD"}
 SUBORDINATORS = {
     "although", "because", "if", "unless", "whereas", "while", "since",
@@ -31,7 +32,7 @@ NONSINGULAR_BAD = {"goes", "has", "does", "is", "was", "says", "thinks", "wants"
 
 
 def analyze(text: str) -> dict[str, float | str]:
-    parts = [part.strip() for part in SENTENCE.split(text or "") if part.strip()]
+    parts = split_sentences(text or "")
     pos_sequences: list[str] = []
     counts: Counter[str] = Counter()
     no_finite = 0
@@ -103,6 +104,7 @@ def main() -> None:
     patterns.insert(0, "split", frame.split)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     patterns.to_csv(args.output, index=False)
+    write_meta(args.output, row_count=len(patterns))
     print(f"saved {len(patterns)} POS rows to {args.output}")
 
 

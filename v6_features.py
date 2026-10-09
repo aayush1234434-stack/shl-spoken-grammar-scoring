@@ -11,8 +11,9 @@ from __future__ import annotations
 import re
 from difflib import SequenceMatcher
 
+from src.sentences import split_sentences
+
 TOKEN = re.compile(r"[A-Za-z']+")
-SENTENCE = re.compile(r"[.!?]+")
 
 PRONOUNS = {
     "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
@@ -30,10 +31,6 @@ FUNCTION = PRONOUNS | AUXILIARIES | ARTICLES | PREPOSITIONS | {"and", "or", "but
 
 def tokens(text: str) -> list[str]:
     return [token.lower() for token in TOKEN.findall(text or "")]
-
-
-def split_sentences(text: str) -> list[str]:
-    return [part.strip() for part in SENTENCE.split(text or "") if part.strip()]
 
 
 def _edit_distance(left: list[str], right: list[str]) -> int:

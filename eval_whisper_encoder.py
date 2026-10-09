@@ -26,7 +26,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--features", type=Path, default=Path("cache/features.csv"))
     parser.add_argument("--embeddings", type=Path, default=Path("cache/whisper_encoder.npz"))
-    parser.add_argument("--oof-dir", type=Path, default=Path("/Users/aayushsingh/Documents/Codex/2026-10-08/hi-as-the-next-step-in/work/experiments"))
+    parser.add_argument("--oof-dir", type=Path, default=Path("work/experiments"))
     parser.add_argument("--medium", type=Path, default=Path("outputs/submission_medium_v6.csv"))
     parser.add_argument("--sample", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("outputs/submission_encoder.csv"))

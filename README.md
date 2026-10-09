@@ -1,22 +1,20 @@
-# SHL spoken grammar scoring: v6
+# SHL spoken grammar scoring
 
-This repository holds the code and submission CSVs for a spoken-English grammar
-scoring model. The model uses Whisper transcripts, grammar-model embeddings,
-reference-free grammar scores, acoustic features, and a small WavLM audio branch.
+Submit `outputs/submission_v6_shift_plus010.csv` (216 rows, aligned to `data/Dataset_Final/test.csv`).
 
-The v6 submission adds three changes to the v5 file:
+That file is `outputs/submission_medium_v6.csv` with 0.10 added to each prediction and clipped to 0–5. Its public RMSE is 0.3715. The unshifted medium-v6 file scored 0.3761, and the WavLM v5 file scored 0.3772.
 
-1. Transcribe each clip with Whisper medium and obtain a second CoLA grammar
-   embedding. Replace half of the original Whisper small embedding prediction
-   with the medium-based prediction.
-2. Give four times as much training weight to labeled clips with IDs 0–215 in
-   the numeric Ridge branch. These clips have feature distributions closer to
-   the test set than the remaining labeled clips.
-3. Replace the learner-error embedding prediction from the small transcript
-   with one computed from the medium transcript.
+The supplied `sample_submission.csv` uses a different set of filenames, so row alignment uses `test.csv`.
 
-Both changes were checked on three five-fold out-of-fold splits over the 732
-speech training clips. RMSE on the 212 training clips in the test-like group:
+## Model
+
+Whisper transcripts, grammar-model embeddings, reference-free grammar scores, acoustic features, and a small WavLM branch. The medium-v6 file changes v5 in three places:
+
+1. A Whisper-medium transcript supplies a second grammar embedding. Half of the original embedding prediction is replaced with the medium-based prediction.
+2. Labeled clips with filename ids 0–215 get four times the weight in the numeric ridge. Their features are closer to the test set than the other labeled clips.
+3. The learner-error embedding is computed from the medium transcript instead of the small transcript.
+
+Local RMSE on the 212 training clips whose filename ids fall in the test range:
 
 | Split seed | v5 | v6 |
 | ---: | ---: | ---: |
@@ -24,14 +22,17 @@ speech training clips. RMSE on the 212 training clips in the test-like group:
 | 89 | 0.5476 | 0.5386 |
 | 97 | 0.5520 | 0.5401 |
 
-These are local validation scores. The actual Kaggle score for v6 is unknown
-until it is submitted. The last v5 public score reported by the candidate was
-0.3772.
+## Checks that did not replace the submission
+
+Each of these was scored on the same 212 clips and seeds. None was submitted, because the local error did not fall by the margin required before writing a new file.
+
+- CoEdIT edit counts. The blend weight chosen inside the folds was 0. Metrics: `outputs/coedit_metrics.json`.
+- A frozen Whisper-small encoder. Local RMSE fell by about 0.01 and the error on true 2.0 and 2.5 scores got worse. Metrics: `outputs/encoder_metrics.json`.
+- An abbreviation-safe sentence split, plus a ridge on the residual of medium-v6. Mean local RMSE was 0.5390 against a medium-v6 baseline of 0.5382, and the error on true 2.0 and 2.5 scores rose. The shared splitter protects `Mr.`, `Mrs.`, `Ms.`, `Dr.`, `St.`, `U.S.`, `e.g.`, `i.e.`, and decimals such as `30.5`.
 
 ## Reproduce
 
-Place the challenge dataset in `data/Dataset_Final/`, then run from the
-repository root:
+Place the challenge dataset in `data/Dataset_Final/`, then run from the repository root:
 
 ```bash
 pip install -r requirements.txt
@@ -50,10 +51,6 @@ python ged_features.py --features cache/medium_features.csv --ged cache/medium_g
 python train_medium_v6.py
 ```
 
-The final file is `outputs/submission_medium_v6.csv`, with 216 rows matching
-`data/Dataset_Final/test.csv`. The supplied `sample_submission.csv` contains a
-different set of filenames, so use `test.csv` for row alignment.
+`train_medium_v6.py` writes `outputs/submission_medium_v6.csv`. The submitted file is that prediction plus 0.10, clipped to 0–5, saved as `outputs/submission_v6_shift_plus010.csv`.
 
-The public repository includes code and prediction files. Challenge audio,
-labels, transcripts, and derived feature caches remain in local `data/` and
-`cache/` directories, which are ignored by Git.
+Challenge audio, labels, transcripts, and feature caches stay in `data/` and `cache/`. Git ignores both directories.

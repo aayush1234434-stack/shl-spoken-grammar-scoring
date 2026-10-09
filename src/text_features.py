@@ -11,6 +11,8 @@ from __future__ import annotations
 import math
 import re
 
+from src.sentences import split_sentences
+
 FUNCTION_WORDS = {
     "a", "an", "the", "of", "to", "in", "on", "for", "with", "at", "from", "by",
     "and", "or", "but", "if", "as", "that", "this", "these", "those", "it", "its",
@@ -34,7 +36,6 @@ REPAIR_CUES = {"sorry", "mean", "actually", "wait"}
 THIRD_SINGULAR = {"he", "she", "it"}
 PLURAL_SUBJECTS = {"i", "you", "we", "they"}
 
-SENTENCE_SPLIT = re.compile(r"[.!?]+")
 WORD_RE = re.compile(r"[a-zA-Z']+")
 COMPLEX_VERB = re.compile(
     r"\b(?:have|has|had|will|would|could|should|might|may)\s+(?:been\s+)?[a-z]+(?:ed|en|ing)\b",
@@ -44,11 +45,6 @@ COMPLEX_VERB = re.compile(
 
 def tokenize(text: str) -> list[str]:
     return [token.lower() for token in WORD_RE.findall(text or "")]
-
-
-def split_sentences(text: str) -> list[str]:
-    parts = [part.strip() for part in SENTENCE_SPLIT.split(text or "") if part.strip()]
-    return parts or ([text.strip()] if text and text.strip() else [])
 
 
 def _safe_div(numerator: float, denominator: float) -> float:

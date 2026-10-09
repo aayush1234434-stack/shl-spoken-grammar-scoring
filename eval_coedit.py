@@ -1,10 +1,10 @@
 """Score CoEdIT edit counts against the medium-v6 predictions.
 
-The base on the 212 test-like training clips is the same blend that scores
-0.5382 locally and became submission_medium_v6.csv. Blend weights are chosen
-inside each fold. A submission is written only when the local RMSE on those
-212 clips falls by about 0.03 and the error on true 2.0 and 2.5 scores falls
-as well.
+The base on the 212 test-like training clips is src.prediction.medium_v6, the
+same blend as submission_medium_v6.csv. Its RMSE is calculated from the OOF
+files for the run. Blend weights are chosen inside each fold. A submission is
+written only when the local RMSE on those 212 clips falls by about 0.03 and
+the error on true 2.0 and 2.5 scores falls as well.
 """
 
 from __future__ import annotations
@@ -21,13 +21,14 @@ from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.prediction import medium_v6
+
 EDIT_COLUMNS = [
     "edits_per_100",
     "worst_sentence_edits",
     "worst_confident_edits",
     "sentences_changed",
 ]
-OOF_DIR = Path("/Users/aayushsingh/Documents/Codex/2026-10-08/hi-as-the-next-step-in/work/experiments")
 SEEDS = (71, 89, 97)
 
 
@@ -45,18 +46,6 @@ def load_jsonl(path: Path) -> dict[tuple[str, str], dict]:
             row = json.loads(line)
             rows[(row["split"], row["filename"])] = row
     return rows
-
-
-def medium_v6(prior: pd.DataFrame, domain: pd.DataFrame, train_mean: float) -> np.ndarray:
-    blend = 0.85 * (0.24 * prior.all_ridge + 0.18 * prior.all_hist + 0.18 * prior.ngram + 0.40 * prior.embedding)
-    blend = blend + 0.075 * prior.ged_numeric_hist + 0.075 * prior["ged_embed_0.1"]
-    calibrated = np.clip(train_mean + 1.25 * (blend.to_numpy(float) - train_mean) - 0.08, 0.0, 5.0)
-    base = np.clip(0.95 * calibrated + 0.05 * prior["wavlm_1.0"].to_numpy(float), 0.0, 5.0)
-    numeric_delta = domain.domain_numeric_4.to_numpy(float) - prior.all_ridge.to_numpy(float)
-    grammar_delta = prior["medium_embed_0.05"].to_numpy(float) - prior.embedding.to_numpy(float)
-    ged_delta = prior["medium_ged_0.05"].to_numpy(float) - prior["ged_embed_0.1"].to_numpy(float)
-    adjusted = base + (0.95 * 1.25) * (0.85 * (0.24 * numeric_delta + 0.20 * grammar_delta) + 0.075 * ged_delta)
-    return np.clip(adjusted, 0.0, 5.0)
 
 
 def out_of_fold(features: np.ndarray, target: np.ndarray, seed: int, alpha: float) -> np.ndarray:
@@ -84,7 +73,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--features", type=Path, default=Path("cache/features.csv"))
     parser.add_argument("--corrections", type=Path, default=Path("cache/coedit_corrections.jsonl"))
-    parser.add_argument("--oof-dir", type=Path, default=OOF_DIR)
+    parser.add_argument("--oof-dir", type=Path, default=Path("work/experiments"))
     parser.add_argument("--medium", type=Path, default=Path("outputs/submission_medium_v6.csv"))
     parser.add_argument("--sample", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("outputs/submission_coedit.csv"))
